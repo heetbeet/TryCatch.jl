@@ -2,7 +2,7 @@
 
 This package serves to provide the same error handling semantics as available in Python using a Julia macro `@try`.
 
-The macro works by having a code block that ends with `@catch`, `@success` and/or `@finally` annotations. These annotations indicate how the flow of the program should redirected in the case of an error.
+The macro works by having a code block that ends with `@catch`, `@success` and/or `@finally` annotations. These annotations indicate how the flow of a code block should be redirected in the case of an error.
 
 #### @try \<codeblock\>
 The @try macro is the main utility in this package. It works on a code block with error redirection annotations to redirect the error flow of the block. i.e.
