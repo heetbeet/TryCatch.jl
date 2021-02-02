@@ -4,6 +4,20 @@ This package serves to provide the same error handling semantics as available in
 
 The macro works by having a code block that ends with `@catch`, `@success` and/or `@finally` annotations. These annotations indicate how the flow of the program should redirected in the case of an error.
 
+#### @try \<codeblock\>
+The @try macro is the main utility in this package. It works on a code block with error redirection annotations to redirect the error flow of the block. i.e.
+
+```julia
+@try begin 
+    <codeblock>
+    
+    @catch <condition> <codeblock>
+    @catch <condition> <codeblock>
+    @success <codeblock>
+    @finally <codeblock>
+end
+```
+
 #### @finally \<codeblock\>
 The @finally annotation provides a way to run a block of code, regardless of how the @try macro exits. Nothing is returned from the @finally code block, i.e. `@try 1 @finally 2` will return `2`
 
