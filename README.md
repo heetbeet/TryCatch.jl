@@ -1,8 +1,8 @@
 # TryCatch.jl
 
-This package serves to provide the same error handling try-except semantics than in Python using a Julia macro called `@try`
+This package serves to provide the same error handling semantics as available in Python using a Julia macro `@try`.
 
-The macro works by having a code block that ends with `@catch`, `@success` and/or `@finally` annotations. These annotations indicate how the flow of the program should behave in the case of an error.
+The macro works by having a code block that ends with `@catch`, `@success` and/or `@finally` annotations. These annotations indicate how the flow of the program should redirected in the case of an error.
 
 #### @finally <codeblock>
 The @finally annotation provides a way to run a block of code, regardless of how the @try macro exits. Nothing is returned from the @finally code block, i.e. `@try 1 @finally 2` will return `2`
