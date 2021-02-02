@@ -44,12 +44,8 @@ julia> @try begin
            @catch e->e isa MethodError begin
                println("Oops cannot use sqrt on a string: ", e)
            end
-           @success begin
-               println("This will only execute when no error occurs")
-           end
-           @finally begin
-               println("This will always execute")
-           end
+           @success println("This will only execute when no error occurs")
+           @finally println("This will always execute")
        end
 Oops cannot use sqrt on a string: MethodError(sqrt, ("34",), 0x00000000000073cc)
 This will always execute
