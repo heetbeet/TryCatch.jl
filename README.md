@@ -1,4 +1,4 @@
-# TryExcept
+# TryCatch.jl
 
 This package serves to provide the same error handling try-except semantics than in Python using a Julia macro called `@try`
 
