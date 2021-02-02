@@ -1,0 +1,16 @@
+name = "TryCatch"
+uuid = "0ca489f0-7580-4b41-9fdc-1863c852da4c"
+authors = ["heetbeet <example@example.com> and contributors"]
+version = "0.1.0"
+
+[deps]
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
