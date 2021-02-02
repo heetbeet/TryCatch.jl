@@ -13,10 +13,10 @@ using Test
     @test_throws MethodError (@try sqrt("34"))
     
 
-    @test_throws MethodError (@try sqrt("34") (@catch e::Errorcatchion e))
+    @test_throws MethodError (@try sqrt("34") (@catch e::ErrorException e))
 
 
-    # If we throw, the catchion block is returned
+    # If we throw, the Exception block is returned
     @test (@try sqrt("34") (@catch e::MethodError 5)) == 5
 
 
@@ -70,7 +70,7 @@ using Test
         sqrt("35")
 
         @catch _->false 15
-        @catch _::Errorcatchion 20
+        @catch _::ErrorException 20
         @catch _::MethodError 25
         @catch _->true 30
     end
