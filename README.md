@@ -25,18 +25,18 @@ end
 #### @catch \<condition\> \<codeblock\>
 The @catch annotation provides a way to run a block of code in the case where an error occured. It does so only when it's given condition is met. The idea is to have multiple catch annotations that get's queried from top to bottom. If one of the conditions is met, then that block will be run and all following blocks will be ignored. If and only if no condition is met, the original error will be rethrown. 
 
-In the case of catching an exception, that catch block's evaluation will be returned, i.e. `@try sqrt("0") @except _ 0` will return `0`.
+Note that the catch blocks have an effect on the return value: if an error is caught the @try macro will return the affiliated catch block's return value. E.g. `@try sqrt("0") @except _ 0` will return `0`.
            
-The `<condition>` must be a lambda function that return a boolean. For example, `@except e->(e isa MethodError)` will be queried in the case of a MethodError. For convenience, we provide two additional shorthands notations:
+The query `<condition>` must be a lambda function returning a boolean. For example `@except e->(e isa MethodError)` is a query that will be triggered in the case of a MethodError. For convenience, we provide two additional shorthand notations that can be used as `<condition>`:
 
   1. `@except foo::MethodError` is shorthand for <br> `@except foo->(foo isa MethodError)`
-  2. `@except (foo isa MethodError || foo isa OtherError && <etc>)` is shorthand for <br> `@except foo->(foo isa MethodError || foo isa OtherError && <etc>)`, with the leftmost symbol `foo` taken as the exception value. Usually the argument is named `e` by convention, but this is not a restriction.
+  2. `@except (foo isa MethodError || foo isa OtherError && <etc>)` is shorthand for <br> `@except foo->(foo isa MethodError || foo isa OtherError && <etc>)`, with the leftmost symbol `foo` taken as the exception. The expection is usually named `e` by convention, but as you can see, this is not a restriction.
 
 #### @else \<codeblock\>
-The @else annotation provides a way to run a block of code _only_ when the try-code ran without errors. Note that if the @else annotation is provided and reached, it's evaluated result will be returned. I.e. `@try 1 @success 2` will return `2`.
+The @else annotation provides a way to run a block of code _only_ when the try-code ran without errors. Note that @else has an effect on the return value: if @else is reached then the @try macro will return the else block's return value. E.g. `@try 1 @success 2` will return `2`.
 
 #### @finally \<codeblock\>
-The @finally annotation provides a way to forcefully run a final block of code, regardless of any error encounters. The @finally code block doesn't partake in value returns, so something like `@try 1 @finally 2` will still return `1`.
+The @finally annotation provides a way to forcefully run a final block of code, regardless of any error encounters. The @finally code block does not partake in the value returning semantics, so something like `@try 1 @finally 2` will still return `1`.
 
 ### By example
 ```julia
