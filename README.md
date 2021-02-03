@@ -2,7 +2,7 @@
 
 This package serves to provide the same error handling semantics as available in Python using a Julia macro `@try`.
 
-The macro works by having a code block that ends with `@catch`, `@success` and/or `@finally` annotations. These annotations indicate how the flow of a code block should be redirected in the case of an error.
+The macro works by having a code block that ends with `@catch`, `@else` and/or `@finally` annotations. These annotations indicate how the flow of a code block should be redirected in the case of an error.
 
 #### @try \<codeblock\>
 The @try macro is the main utility in this package. It works on a code block with error redirection annotations to redirect the error flow of the block. i.e.
@@ -10,42 +10,47 @@ The @try macro is the main utility in this package. It works on a code block wit
 ```julia
 @try begin 
     <codeblock>
-    
-    @catch <condition> <codeblock>
-    @catch <condition> <codeblock>
-    @success <codeblock>
-    @finally <codeblock>
+@catch <condition> 
+    <codeblock>
+@catch <condition> 
+    <codeblock>
+@else 
+    <codeblock>
+@finally
+    <codeblock>
 end
 ```
 
-#### @finally \<codeblock\>
-The @finally annotation provides a way to run a block of code, regardless of how the @try macro exits. Nothing is returned from the @finally code block, i.e. `@try 1 @finally 2` will return `2`
-
-#### @success \<codeblock\>
-The @success annotation provides a way to run a block of code _only_ when the try-code ran without errors. Note that if the @success annotation is provided and reached, then the success block's value will be returned, i.e. `@try 1 @success 2` will return `2`.
-           
+        
 #### @catch \<condition\> \<codeblock\>
-The @catch annotation provides a way to run a block of code when a condition is met. You can have multiple catch annotations, each condition will be evaluated from top to bottom, until a condition is met, then only that codeblock will be run. If a condition is met, no error will be thrown, but if no condition is met, the original error will still be thrown. In the case of an caught exception, that catch block's value will be returned, i.e. `@try sqrt("0") @except e->true 0` will return `0`.
+The @catch annotation provides a way to run a block of code when a condition is met. You can have multiple catch annotations, each condition will be evaluated from top to bottom, until a condition is met, then only that codeblock will be run. If a condition is met, no error will be thrown, but if no condition is met, the original error will still be thrown. In the case of catching an exception, that catch block's evaluation will be returned, i.e. `@try sqrt("0") @except _ 0` will return `0`.
            
-The `<condition>` must be a lambda function of the form `arg->(...)`. For example `@try sqrt("0") @except e->e isa MethodError 0` will catch a MethodError exception. For convenience, we also provide two additional shorthands notations:
+The `<condition>` must be a lambda function of the form `arg->(...)`. For example `@try sqrt("0") @except e->(e isa MethodError) 0` will catch a MethodError exception. For convenience, we also provide two additional shorthands notations:
 
-  1. `@except foo::MethodError println(foo)` is shorthand for <br> `@except foo->(foo isa MethodError) println(foo)`
-  2. `@except (foo isa MethodError || foo isa OtherError) println(foo)` is shorthand for <br> `@except foo->(foo isa MethodError || foo isa OtherError) println(foo)`, with the leftmost symbol `foo` is as the exception value.
+  1. `@except foo::MethodError` is shorthand for <br> `@except foo->(foo isa MethodError)`
+  2. `@except (foo isa MethodError || foo isa OtherError)` is shorthand for <br> `@except foo->(foo isa MethodError || foo isa OtherError)`, with the leftmost symbol `foo` taken as the exception value (usually denoted as `e`).
 
+#### @else \<codeblock\>
+The @else annotation provides a way to run a block of code _only_ when the try-code ran without errors. Note that if the @else annotation is provided and reached, then it's evaluated result will be returned, i.e. `@try 1 @success 2` will return `2`.
+
+#### @finally \<codeblock\>
+The @finally annotation provides a way to forcefully run code, regardless of how the @try macro exits. The @finally code block doesn't partake in returning values, i.e. `@try 1 @finally 2` will return `1`.
 
 ### By example
 ```julia
 julia> using TryCatch
 
 julia> @try begin
+
            1 + 2
            sqrt("34")
 
-           @catch e->e isa MethodError begin
+       @catch e->e isa MethodError 
                println("Oops cannot use sqrt on a string: ", e)
-           end
-           @success println("This will only execute when no error occurs")
-           @finally println("This will always execute")
+       @else 
+           println("This will only execute when no error occurs")
+       @finally 
+           println("This will always execute")
        end
 Oops cannot use sqrt on a string: MethodError(sqrt, ("34",), 0x00000000000073cc)
 This will always execute
@@ -55,5 +60,10 @@ This will always execute
 ```julia
 julia> @try sqrt("34") @catch e::MethodError println("Oops")
 Oops
+
+julia> @try sqrt("34") @catch e::ErrorException println("Oops")
+ERROR: MethodError: no method matching sqrt(::String)
+Closest candidates are:
+  sqrt(::Union{Float32, Float64}) at math.jl:581...
 ```
 
