@@ -1,7 +1,153 @@
 module TryCatch
     export @try
 
+
+    specials = (:(var"@catch"), :(var"@else"), :(var"@finally"))
+
+    "
+    Test if an expression is one of the special annotations
+    "
+    isspecial(ex) = begin
+        if ex isa Expr && ex.head == :macrocall && ex.args[1] ∈ specials
+            true
+        else
+            false
+        end
+    end
+
+
+    "
+    Copy an expression-like object
+    "
+    copyex(ex::Expr) = copy(ex)
+    copyex(ex) = ex
+
+
+    "
+    Truncated one-line string representation of an expression
+    "
+    strexpr(ex, truncate=nothing) = begin
+        exstr = string(linenumberremove(ex))
+        exstr = join(strip.(split(exstr, "\n")), " ")
+        if truncate !== nothing && lastindex(exstr) > truncate-3
+            exstr = join([i for i in exstr][begin:truncate])*"..."
+        end
+        return exstr
+    end
+
+
+    "
+    Given `@try 3 @catch e @else 21 @finally 1` unnest the inner catch/else/finally macros from the outer ones
+    in order to flatten the structure.
+    "
+    unnestmacrolabels(exs) = begin
+        exs = [copyex(i) for i in exs]
+        
+        i=0; while (i+=1)<=length(exs)
+            if isspecial(exs[i])
+               for j ∈ 2:length(exs[i].args)
+                    if isspecial(exs[i].args[j])
+                        # append the rest of the lines to underneath this macro
+                        exs[i].args, leftovers = exs[i].args[1:j-1], exs[i].args[j:end]
+                        for k ∈ 1:length(leftovers)
+                            insert!(exs, i+k, leftovers[k])
+                        end
+
+                        # pre-advance i a few lines 
+                        i+=length(leftovers)-1
+                    end
+                end
+            end
+        end
+
+        return exs
+    end
+
+
+    "
+    Given lines of code, split them into groups: :head, @catch, @else and @finally
+    "
+    split_try_labels_into_groups(exs) = begin
+
+        groups = [:head, specials...]
+        d = Dict()
+
+        for g in groups
+            d[g] = []
+        end
+
+        gᵢ = 1
+        macroname = :(var"@try")
+        seen = Set([:head])
+        for i ∈ 1:length(exs)
+            ex = exs[i]
+            
+            if ex isa Expr && ex.head == :macrocall && ex.args[1] in specials
+                macronameᵢ = ex.args[1]
+                if macronameᵢ ∈ groups[gᵢ:end]
+                    gᵢ = findfirst(x->(macronameᵢ==x), groups)
+
+                    # may have multiple catch blocks
+                    if groups[gᵢ] == :(var"@catch")
+                        #push!(d[groups[gᵢ]], [])
+
+                        if length(ex.args) >=5 
+                            throw(ErrorException("syntax: $(string(groups[gᵢ])) unexpected code block `$(strexpr(ex.args[5], 23))`"))
+                        end
+
+                        # linenumber+condition => block
+                        if length(ex.args) < 3
+                            cond = (ex.args[2], Expr(:->, gensym(:e), true))
+                            args = Vector{Any}(ex.args[2:end])
+                        else
+                            cond = (ex.args[2], ex.args[3])
+                            args = Vector{Any}([ex.args[2], ex.args[4:end]...])
+                        end
+
+                        # Also push the linenumbernode
+                        push!(d[groups[gᵢ]], cond=>args)
+
+                    # may have single other blocks
+                    else
+                        if macronameᵢ == macroname
+                            throw(ErrorException("syntax: unexpected $(macronameᵢ) following $(macroname)"))
+                        end
+
+                        if length(ex.args) >=4
+                            throw(ErrorException("syntax: $(string(groups[gᵢ])) unexpected code block `$(strexpr(ex.args[4], 23))`"))
+                        end
+
+                        # Also push the linenumbernode
+                        append!(d[groups[gᵢ]], ex.args[2:end])
+
+                    end
+                else
+                    throw(ErrorException("syntax: unexpected $(macronameᵢ) following $(macroname)"))
+                end
+
+                macroname = macronameᵢ
+                push!(seen, macroname)
+
+            else
+                if groups[gᵢ] == :(var"@catch")
+                    push!(d[groups[gᵢ]][end][2], ex)
+                else
+                    push!(d[groups[gᵢ]], ex)
+                end
+            end
+        end
+
+        # Don't record unseen macro labels that was never seen
+        for key in keys(d)
+            if !(key ∈ seen)
+                d[key] = nothing
+            end
+        end
+
+        return d
+    end
     
+
     "
     Function to generate if-elseif-else statements
     "
@@ -61,6 +207,10 @@ module TryCatch
     Remove any LineNumberNodes from an expression
     "
     linenumberremove(ex::Expr) = begin
+        if ex.head == :macrocall
+            ex = copyex(ex)
+            ex.args[2] = nothing
+        end
         Expr((linenumberremove(i) for i ∈ [ex.head; ex.args] if !(i isa LineNumberNode))...)
     end
     linenumberremove(ex::LineNumberNode) = Expr(:block)
@@ -68,20 +218,20 @@ module TryCatch
 
 
     "
-    Convert our allowable set of conditions into boolean expressions
+    Convert our custom condition-like expression into a proper boolean expression with an entry-symbol
     "
     function conditionhelper(ex, linenumber=nothing)
         if ex isa Expr && ex.head == :->
             larg = ex.args[1]
             if !(larg isa Symbol)
-                throw(ArgumentError("@catch's lambda must be single argument, like e->true"))
+                throw(ErrorException("@catch lambda condition must have a single argument like `e->true`, got `$(strexpr(ex, 23))`"))
             end
 
             return ex.args[2], larg
 
         elseif ex isa Expr && ex.head == :(::)
-            if !(length(ex.args)==2)
-                throw(ArgumentError("@catch's type notation must be in the form e::TypeOfError"))
+            if !(length(ex.args)==2) || !(ex.args[1] isa Symbol)
+                throw(ErrorException("@catch condition must be in the form `e::TypeOfError`, got `$(strexpr(ex, 23))`"))
             end
 
             return Expr(:block,
@@ -92,9 +242,9 @@ module TryCatch
             ex_copy = ex
             while !(ex_copy isa Symbol)
                 if !(ex_copy isa Expr)
-                    "@catch expressions must have a symbol at the leftmost location."
+                    throw(ErrorException("@catch condition must have a symbol at the leftmost location, got `$(strexpr(ex_copy, 23))`"))
                 end
-    
+                
                 i₁ = ex_copy.head ∈ (:macrocall, :call, :ref) ? 2 : 1
                 ex_copy = ex_copy.args[i₁]
             end
@@ -117,6 +267,10 @@ module TryCatch
     var"@try" = var"@try_"
     typeof(var"@try").name.mt.name = Symbol("@try")
     macro try_(exs...)
+        # Check correct number of arguments
+        if length(exs) >=2 && !isspecial(exs[2])
+            throw(ErrorException("syntax: @try unexpected code block `$(strexpr(exs[2], 23))`"))
+        end
 
         # Turn :block entry into a list
         if length(exs) == 1  
@@ -125,100 +279,45 @@ module TryCatch
             end
         end
 
-        # Tese are captured and evaluated
-        specials = (:(var"@catch"), :(var"@success"), :(var"@finally"))
-
-        # Split according to try lines and side-effect lines
-        border = length(exs)+1
-        for (i, ex) in enumerate(exs)
-            if ex isa Expr && ex.head == :macrocall && ex.args[1] in specials
-                border = i
-                break
-            end
-        end
-        #if border === nothing
-        #    throw(ArgumentError("@try must end with @catch, @success and/or @finally block."))
-        #end
-
-        head = exs[1:border-1]
-        tail = exs[border:end]
-
-        # Remove trailing LineNumberNode
-        if length(head) > 0 && head[end] isa LineNumberNode
-            head = head[1:end-1]
-        end
-
-        for i in head
-            if i ∈ specials
-                throw(ArgumentError("@catch, @success and/or @finally blocks must be at the end of @try macro."))
-            end
-
-        end
-
-        # Only use the macros
-        tail = [i for i in tail if !(i isa LineNumberNode)]
-        for i in tail
-            if (i.head != :macrocall) || !(i.args[1] in specials)
-                throw(ArgumentError("@catch, @success and/or @finally blocks bust be at the end of @try macro."))
-            end
-        end
+        exs = unnestmacrolabels(exs)
+        d = split_try_labels_into_groups(exs)
 
 
-        # Ensure only a single success block
-        success = [i for i in tail if i.args[1] == :(var"@success")]
-        success = if length(success) == 0 
-            nothing 
-        elseif length(success) == 1 
-            if length(success[1].args) != 3
-                throw(ArgumentError("@success must contain single expression block"))
-            end
-            success[1].args[3]
-        else 
-            throw(ArgumentError("@try may only have one @success block"))
-        end
-
-
-        # Ensure only a single finally block
-        finally_ = [i for i in tail if i.args[1] == :(var"@finally")]
-        finally_ = if length(finally_) == 0 
-            nothing 
-        elseif length(finally_) == 1 
-            if length(finally_[1].args) != 3
-                throw(ArgumentError("@finally must contain single expression block"))
-            end
-        finally_[1].args[3]
-        else 
-            throw(ArgumentError("@try may only have one @finally block"))
-        end
-
-        # capture all the catch blocks
-        @gensym exception
-        catch_ = [i for i in tail if i.args[1] == :(var"@catch")]
+        # Convert the groups into expressions
+        @gensym exception successful successresult
         conditions = []
-        for i in catch_
-            if length(i.args) != 4
-                throw(ArgumentError("@catch must have form `@catch <condition> <expression>`"))
+        if d[Symbol("@catch")] !== nothing
+            for ((linenum, cond), block) ∈ d[Symbol("@catch")]
+                # refactor into proper conditionals
+                cond, sym = conditionhelper(cond, linenum)
+
+                # find-and-repalace error symbol in block
+                cond = symbolrename(cond, sym, exception)
+                block = symbolrename(block, sym, exception)
+
+                push!(
+                    conditions,
+                    Expr(:block, linenum, cond) => Expr(:block, block...)
+                )
             end
-
-            elinenum = i.args[2]
-            econd, esym = conditionhelper(i.args[3], elinenum)
-            eexpr = i.args[4]
-            
-            # Replace temp symbol with exception symbol
-            econd = symbolrename(econd, esym, exception)
-            eexpr = symbolrename(eexpr, esym, exception)
-
-            push!(
-                conditions,
-                Expr(:block, elinenum, econd) => Expr(:block, elinenum, eexpr)
-            )
         end
-        catchclauses = ifgenerator(conditions,
-                                    :(rethrow($exception)))
 
-        
-        @gensym headₓ successₓ finallyₓ catchₓ successresultₓ
-        @gensym successful successresult
+        headₓₓ = Expr(:block, d[:head]...)
+        catchₓₓ = ifgenerator(conditions, :(rethrow($exception)))
+        elseₓₓ = if d[Symbol("@else")]===nothing 
+                     nothing 
+                 else 
+                     Expr(:(=), successresult, Expr(:if, successful, Expr(:block, d[Symbol("@else")]...)))
+                 end
+
+        finallyₓₓ = if d[Symbol("@finally")]===nothing 
+                        nothing 
+                    else
+                        Expr(:block, d[Symbol("@finally")]...)
+                    end
+
+
+        @gensym headₓ elseₓ finallyₓ catchₓ
         template = :(
             $successresult = nothing;
             $successful=true;
@@ -229,7 +328,7 @@ module TryCatch
                 $catchₓ
             finally
                 try
-                    $successₓ
+                    $elseₓ
                 finally
                     $finallyₓ
                 end
@@ -237,25 +336,24 @@ module TryCatch
             $successresult
         )
 
-        # Only return `successresults` if @success annotation is present
-        if success === nothing
+        # Only return `successresults` if @else annotation is present
+        if d[Symbol("@else")] === nothing
             template.args = template.args[1:end-1]
         end
 
         # Strip the Trycatch file lines from this macro
         template = linenumberremove(template)
 
+        replacements = Dict(headₓ=>headₓₓ,
+                            catchₓ=>catchₓₓ, 
+                            elseₓ=>elseₓₓ, 
+                            finallyₓ=>finallyₓₓ)
+
         # Remove any `nothing` expression
-        symbolremove(template, [key for (key,val) ∈ [successₓ=>success,
-                                                     finallyₓ=>finally_,
-                                                     catchₓ=>catch_] if val === nothing])
-        
+        template = symbolremove(template, [key for (key,val) ∈ replacements if val === nothing])
+
         # Fill the expression with 
-        template = symbolrename(template,
-                                Dict(headₓ => Expr(:block, head...),
-                                     successₓ => Expr(:(=), successresult, Expr(:if, successful, success)),
-                                     finallyₓ => finally_,
-                                     catchₓ => catchclauses))
+        template = symbolrename(template, replacements)
 
         esc(template)
     end
