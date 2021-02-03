@@ -5,7 +5,7 @@ This package provides a Julia macro `@try` in order to provide similar error han
 The macro works by adding `@catch`, `@else` and/or `@finally` annotations to a code block in order to redirect the error flow of the block.
 
 #### @try
-The @try macro is the main utility in this package. It works on a code block with error redirection annotations in order to redirect the error flow of the block. i.e.
+The @try macro is the main utility in this package. It works by annotating a code block with error redirections, in order to control the error flow of the block. E.g.
 
 ```julia
 @try begin 
