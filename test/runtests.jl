@@ -8,6 +8,18 @@ using Test
 
     @test (@try @catch e @else 2) == 2
 
+    @test (@try @catch @else 2) == 2
+
+    @test (
+        @try begin
+            sqrt("0")
+        @catch 
+            2
+        end
+    ) == 2
+
+    @test (@try sqrt("0") @catch _ 2) == 2
+
     @test (@try 1) == 1
 
     @test_throws MethodError (@try sqrt("34"))

@@ -291,13 +291,16 @@ module TryCatch
                 # refactor into proper conditionals
                 cond, sym = conditionhelper(cond, linenum)
 
-                # find-and-repalace error symbol in block
+                cond = Expr(:block, linenum, cond)
+                block = Expr(:block, block...)
+
+                # find-and-replace the error symbol in block
                 cond = symbolrename(cond, sym, exception)
                 block = symbolrename(block, sym, exception)
 
                 push!(
                     conditions,
-                    Expr(:block, linenum, cond) => Expr(:block, block...)
+                    cond => block
                 )
             end
         end
