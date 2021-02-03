@@ -28,7 +28,7 @@ The @catch annotation provides a way to run a block of code when a condition is 
 The `<condition>` must be a lambda function of the form `arg->(...)`. For example `@try sqrt("0") @except e->(e isa MethodError) 0` will catch a MethodError exception. For convenience, we also provide two additional shorthands notations:
 
   1. `@except foo::MethodError` is shorthand for <br> `@except foo->(foo isa MethodError)`
-  2. `@except (foo isa MethodError || foo isa OtherError)` is shorthand for <br> `@except foo->(foo isa MethodError || foo isa OtherError)`, with the leftmost symbol `foo` taken as the exception value (usually denoted as `e`).
+  2. `@except (foo isa MethodError || foo isa OtherError)` is shorthand for <br> `@except foo->(foo isa MethodError || foo isa OtherError)`, with the leftmost symbol `foo` taken as the exception value (by convention it is usually named `e`, as in `catch e`).
 
 #### @else \<codeblock\>
 The @else annotation provides a way to run a block of code _only_ when the try-code ran without errors. Note that if the @else annotation is provided and reached, then it's evaluated result will be returned, i.e. `@try 1 @success 2` will return `2`.
