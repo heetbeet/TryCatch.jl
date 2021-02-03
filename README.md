@@ -46,7 +46,7 @@ julia> @try begin
            sqrt("34")
 
        @catch e->e isa MethodError 
-               println("Oops cannot use sqrt on a string: ", e)
+           println("Oops cannot use sqrt on a string: ", e)
        @else 
            println("This will only execute when no error occurs")
        @finally 
