@@ -259,7 +259,7 @@ module TryCatch
     end
 
 
-    "
+    """
     A @try macro to mimickes how error handling is done in Python, using @catch @except and @finally as labels.
                                                 
     Example:
@@ -272,7 +272,7 @@ module TryCatch
         println("Oh, well")
     end
     ```
-    "
+    """
     macro try_ end
 
     # Rename  @try_ to @try in order to bypass reserved keyword restriction
