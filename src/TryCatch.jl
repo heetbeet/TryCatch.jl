@@ -1,11 +1,10 @@
 module TryCatch
     export @try
 
-
     specials = (:(var"@catch"), :(var"@else"), :(var"@finally"))
 
     "
-    Test if an expression is one of the special annotations
+    Test if an expression is one of these special annotations
     "
     isspecial(ex) = begin
         if ex isa Expr && ex.head == :macrocall && ex.args[1] ∈ specials
@@ -24,7 +23,7 @@ module TryCatch
 
 
     "
-    Truncated one-line string representation of an expression
+    A truncate-able one-line string representation of an expression for display purposes
     "
     strexpr(ex, truncate=nothing) = begin
         exstr = string(linenumberremove(ex))
@@ -37,8 +36,8 @@ module TryCatch
 
 
     "
-    Given `@try 3 @catch e @else 21 @finally 1` unnest the inner catch/else/finally macros from the outer ones
-    in order to flatten the structure.
+    Given a code block labelled with @catch, @else and/or @finally annotation, like `@try 3 @catch e @else 21 @finally 1`, unnest these inner macros-like 
+    annotations from the outer nests in order to achieve a sequential structure and not a nested one.
     "
     unnestmacrolabels(exs) = begin
         exs = [copyex(i) for i in exs]
@@ -47,13 +46,13 @@ module TryCatch
             if isspecial(exs[i])
                for j ∈ 2:length(exs[i].args)
                     if isspecial(exs[i].args[j])
-                        # append the rest of the lines to underneath this macro
+                        # append the inner nest to underneath this macro
                         exs[i].args, leftovers = exs[i].args[1:j-1], exs[i].args[j:end]
                         for k ∈ 1:length(leftovers)
                             insert!(exs, i+k, leftovers[k])
                         end
 
-                        # pre-advance i a few lines 
+                        # advance i to continue after this insersion 
                         i+=length(leftovers)-1
                     end
                 end
@@ -65,7 +64,8 @@ module TryCatch
 
 
     "
-    Given lines of code, split them into groups: :head, @catch, @else and @finally
+    Given the expression send to the @try macro as an array of 'lines-of-code', sort them into the following groups
+    groups: :head, @catch, @else and @finally
     "
     split_try_labels_into_groups(exs) = begin
 
@@ -149,7 +149,7 @@ module TryCatch
     
 
     "
-    Function to generate if-elseif-else statements
+    Function to generate if-elseif-else type od expressions
     "
     ifgenerator(conds=nothing, else_=nothing) = begin
         if conds === nothing || length(conds) == 0
@@ -177,7 +177,7 @@ module TryCatch
 
 
     "
-    Rename a symbol within an expression to something else
+    Replace all instances of a symbol within a given expression
     "
     symbolrename(ex::Expr, find, replace) = begin
         Expr((symbolrename(i, find, replace) for i in [ex.head; ex.args])...)
@@ -195,7 +195,7 @@ module TryCatch
 
 
     "
-    Remove symbol from expression
+    Remove a symbol from expression
     "
     symbolremove(ex::Expr, slist) = begin
         Expr((symbolremove(i, slist) for i ∈ [ex.head; ex.args] if !(i ∈ slist))...)
@@ -218,7 +218,8 @@ module TryCatch
 
 
     "
-    Convert our custom condition-like expression into a proper boolean expression with an entry-symbol
+    Convert the condition-like expression of the catch block, e.g. `catch e isa MethodError`, into a proper boolean expression
+    `catch e->e isa MethodError`
     "
     function conditionhelper(ex, linenumber=nothing)
         if ex isa Expr && ex.head == :->
@@ -259,7 +260,18 @@ module TryCatch
 
 
     "
-    The @try macro mimickes and extends how error handling is done in Python.
+    A @try macro to mimickes how error handling is done in Python, using @catch @except and @finally as labels.
+                                                
+    Example:
+    ```
+    @try 
+        sqrt("34") 
+    @catch e::MethodError 
+        println("Oops")
+    @finally
+        println("Oh, well")
+    end
+    ```
     "
     macro try_ end
 
