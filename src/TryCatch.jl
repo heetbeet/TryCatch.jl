@@ -264,7 +264,7 @@ module TryCatch
                                                 
     Example:
     ```
-    @try 
+    @try begin
         sqrt("34") 
     @catch e::MethodError 
         println("Oops")
