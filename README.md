@@ -33,7 +33,7 @@ The query `<condition>` must be a lambda function returning a boolean. For examp
   2. `@except (foo isa MethodError || foo isa OtherError && <etc>)` is shorthand for <br> `@except foo->(foo isa MethodError || foo isa OtherError && <etc>)`, with the leftmost symbol `foo` taken as the exception. The expection is usually named `e` by convention, but as you can see, this is not a restriction.
 
 #### @else \<codeblock\>
-The @else annotation provides a way to run a block of code _only_ when the try-code ran without errors. Note that @else has an effect on the return value: if @else is reached then the @try macro will return the else block's return value. E.g. `@try 1 @success 2` will return `2`.
+The @else annotation provides a way to run a block of code _only_ when the try-code ran without errors. Note that @else has an effect on the return value: if @else is reached then the @try macro will return the else block's return value. E.g. `@try 1 @else 2` will return `2`.
 
 #### @finally \<codeblock\>
 The @finally annotation provides a way to forcefully run a final block of code, regardless of any error encounters. The @finally code block does not partake in the value returning semantics, so something like `@try 1 @finally 2` will still return `1`.
