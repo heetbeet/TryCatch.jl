@@ -23,7 +23,7 @@ end
 
         
 #### @catch \<condition\> \<codeblock\>
-The @catch annotation provides a way to run a block of code in the case where an error occured. It does so only when it's given condition is met. The idea is to have multiple catch annotations that get's queried from top to bottom. If one of the conditions is met, then that block will be run and all following blocks will be ignored. If and only if no condition is met, the original error will be rethrown. 
+The @catch annotation provides a way to run a block of code in the case where an error occured. It does so only when it's given condition is met. The idea is to have multiple catch annotations that gets queried from top to bottom. If one of the conditions is met, then that block will be run and all following blocks will be ignored. If and only if no condition is met, the original error will be rethrown. 
 
 Note that the catch blocks have an effect on the return value: if an error is caught the @try macro will return the affiliated catch block's return value. E.g. `@try sqrt("0") @except _ 0` will return `0`.
            
