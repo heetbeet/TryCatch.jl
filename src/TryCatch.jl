@@ -29,7 +29,7 @@ module TryCatch
         exstr = string(linenumberremove(ex))
         exstr = join(strip.(split(exstr, "\n")), " ")
         if truncate !== nothing && lastindex(exstr) > truncate-3
-            exstr = join([i for i in exstr][begin:truncate])*"..."
+            exstr = join([i for i in exstr][1:truncate])*"..."
         end
         return exstr
     end
